@@ -84,6 +84,63 @@ class WhyleloopSDK {
     return restorePendingLinks();
   }
   
+  /// Create a dynamic link for the current page
+  /// 
+  /// Generates a shareable link that deep links to the page where the user is currently viewing.
+  /// When any user clicks this link, they will be navigated to the specified destination.
+  /// 
+  /// Example usage:
+  /// - User is on a product page: `/product/123`
+  /// - User clicks share button
+  /// - App calls: `sdk.createLink(destination: '/product/123')`
+  /// - Generated link, when clicked, navigates to `/product/123`
+  /// 
+  /// [destination] - The current page path/route in your app (e.g., "/product/123")
+  ///                 This should be the path where the user is when creating the link.
+  /// [metadata] - Optional metadata (UTM parameters, custom data, etc.)
+  /// Returns a CreatedLink with the generated link URL
+  Future<CreatedLink> createLink({
+    required String destination,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      // Prepare request body
+      final Map<String, dynamic> requestBody = {
+        'appId': appId,
+        'destination': destination,
+      };
+      
+      if (metadata != null && metadata.isNotEmpty) {
+        requestBody['metadata'] = metadata;
+      }
+      
+      // Make API request
+      final response = await http.post(
+        Uri.parse('$baseURL/api/links/create-sdk'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        
+        if (responseData['success'] == true) {
+          return CreatedLink.fromJson(responseData['link']);
+        } else {
+          throw Exception('API returned error: ${responseData['error'] ?? 'Unknown error'}');
+        }
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        throw Exception(errorData['error'] ?? 'HTTP error: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('$_tag: Error creating link: $e');
+      rethrow;
+    }
+  }
+  
   /// Get device fingerprint for anonymous user identification
   Future<String> _getDeviceFingerprint() async {
     final prefs = await SharedPreferences.getInstance();
@@ -120,6 +177,50 @@ class WhyleloopSDK {
       print('$_tag: Error generating device fingerprint: $e');
       return DateTime.now().millisecondsSinceEpoch.toString();
     }
+  }
+}
+
+/// Data class for created link
+class CreatedLink {
+  final String id;
+  final String slug;
+  final String url;
+  final String destination;
+  final Map<String, dynamic> metadata;
+  
+  CreatedLink({
+    required this.id,
+    required this.slug,
+    required this.url,
+    required this.destination,
+    required this.metadata,
+  });
+  
+  /// Create CreatedLink from JSON
+  factory CreatedLink.fromJson(Map<String, dynamic> json) {
+    return CreatedLink(
+      id: json['id'] ?? '',
+      slug: json['slug'] ?? '',
+      url: json['url'] ?? '',
+      destination: json['destination'] ?? '',
+      metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
+    );
+  }
+  
+  /// Convert to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'slug': slug,
+      'url': url,
+      'destination': destination,
+      'metadata': metadata,
+    };
+  }
+  
+  @override
+  String toString() {
+    return 'CreatedLink(id: $id, url: $url, destination: $destination)';
   }
 }
 
@@ -216,7 +317,38 @@ extension WhyleloopSDKExtension on WhyleloopSDK {
       callback([], e is Exception ? e : Exception(e.toString()));
     }
   }
+  
+  /// Create a dynamic link with callback
+  /// 
+  /// [destination] - The current page path/route where the user is when creating the link
+  ///                 When the link is clicked, users will navigate to this destination.
+  /// [metadata] - Optional metadata (UTM parameters, etc.)
+  /// [callback] - Callback function to handle results
+  Future<void> createLinkWithCallback({
+    required String destination,
+    Map<String, dynamic>? metadata,
+    required CreateLinkCallback callback,
+  }) async {
+    try {
+      final createdLink = await createLink(
+        destination: destination,
+        metadata: metadata,
+      );
+      callback(createdLink, null);
+    } catch (e) {
+      callback(CreatedLink(
+        id: '',
+        slug: '',
+        url: '',
+        destination: destination,
+        metadata: metadata ?? {},
+      ), e is Exception ? e : Exception(e.toString()));
+    }
+  }
 }
+
+/// Callback function type for create link operations
+typedef CreateLinkCallback = void Function(CreatedLink link, Exception? error);
 
 /*
 // Usage Example in your main.dart or app initialization:
