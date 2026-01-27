@@ -141,6 +141,52 @@ class WhyleloopSDK {
     }
   }
   
+  /// Get link details by slug
+  /// 
+  /// When your app receives a deep link URL, extract the slug and call this method
+  /// to get the link details including destination and parameters.
+  /// 
+  /// [slug] - The slug from the deep link URL (e.g., "1734567890-abc123")
+  /// [hostname] - Optional hostname from the URL (for custom domain support)
+  /// Returns a LinkDetails with destination and parameters
+  Future<LinkDetails> getLinkBySlug({
+    required String slug,
+    String? hostname,
+  }) async {
+    try {
+      // Build query parameters
+      final queryParams = <String, String>{
+        'slug': slug,
+        'appId': appId,
+      };
+      if (hostname != null) {
+        queryParams['hostname'] = hostname;
+      }
+      
+      final uri = Uri.parse('$baseURL/api/links/get-by-slug')
+          .replace(queryParameters: queryParams);
+      
+      // Make API request
+      final response = await http.get(uri);
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        
+        if (responseData['success'] == true) {
+          return LinkDetails.fromJson(responseData['link']);
+        } else {
+          throw Exception('API returned error: ${responseData['error'] ?? 'Unknown error'}');
+        }
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        throw Exception(errorData['error'] ?? 'HTTP error: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('$_tag: Error getting link by slug: $e');
+      rethrow;
+    }
+  }
+  
   /// Get device fingerprint for anonymous user identification
   Future<String> _getDeviceFingerprint() async {
     final prefs = await SharedPreferences.getInstance();
@@ -229,6 +275,9 @@ class RestoredLink {
   final String pendingLinkId;
   final String originalUrl;
   final String destinationUrl;
+  final String? destinationPath; // Path without parameters (e.g., "/product/123")
+  final String? destination; // Full destination with parameters (e.g., "/product/123?utm_source=share")
+  final Map<String, dynamic>? parameters; // Extracted parameters for easy access
   final Map<String, dynamic> metadata;
   final String linkId;
   
@@ -236,6 +285,9 @@ class RestoredLink {
     required this.pendingLinkId,
     required this.originalUrl,
     required this.destinationUrl,
+    this.destinationPath,
+    this.destination,
+    this.parameters,
     required this.metadata,
     required this.linkId,
   });
@@ -246,6 +298,11 @@ class RestoredLink {
       pendingLinkId: json['pending_link_id'] ?? '',
       originalUrl: json['original_url'] ?? '',
       destinationUrl: json['destination_url'] ?? '',
+      destinationPath: json['destination_path'] as String?,
+      destination: json['destination'] as String?,
+      parameters: json['parameters'] != null 
+        ? Map<String, dynamic>.from(json['parameters'] as Map)
+        : null,
       metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
       linkId: json['link_id'] ?? '',
     );
@@ -280,6 +337,47 @@ class RestoredLink {
   @override
   String toString() {
     return 'RestoredLink(pendingLinkId: $pendingLinkId, originalUrl: $originalUrl, destinationUrl: $destinationUrl, linkId: $linkId)';
+  }
+}
+
+/// Data class for link details
+class LinkDetails {
+  final String id;
+  final String slug;
+  final String destinationWebUrl;
+  final String destinationPath; // Path without parameters
+  final String destination; // Full destination with parameters
+  final Map<String, dynamic> parameters; // Extracted parameters
+  final Map<String, dynamic> metadata;
+  
+  LinkDetails({
+    required this.id,
+    required this.slug,
+    required this.destinationWebUrl,
+    required this.destinationPath,
+    required this.destination,
+    required this.parameters,
+    required this.metadata,
+  });
+  
+  /// Create LinkDetails from JSON
+  factory LinkDetails.fromJson(Map<String, dynamic> json) {
+    return LinkDetails(
+      id: json['id'] ?? '',
+      slug: json['slug'] ?? '',
+      destinationWebUrl: json['destination_web_url'] ?? '',
+      destinationPath: json['destination_path'] ?? '',
+      destination: json['destination'] ?? '',
+      parameters: json['parameters'] != null
+        ? Map<String, dynamic>.from(json['parameters'] as Map)
+        : {},
+      metadata: Map<String, dynamic>.from(json['metadata'] ?? {}),
+    );
+  }
+  
+  @override
+  String toString() {
+    return 'LinkDetails(id: $id, destination: $destination)';
   }
 }
 
