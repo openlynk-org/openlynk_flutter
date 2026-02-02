@@ -1,6 +1,6 @@
-# Whyleloop SDK for Flutter
+# Openlynk SDK for Flutter
 
-A Flutter SDK for implementing deferred deep linking with Whyleloop.
+A Flutter SDK for implementing deferred deep linking with Openlynk.
 
 ## Features
 
@@ -16,8 +16,8 @@ A Flutter SDK for implementing deferred deep linking with Whyleloop.
 
 ```yaml
 dependencies:
-  whyleloop_sdk:
-    path: path/to/whyleloop_sdk
+  openlynk_sdk:
+    path: path/to/openlynk_sdk
 ```
 
 ### 2. Install dependencies
@@ -31,22 +31,22 @@ flutter pub get
 ### Basic Setup
 
 ```dart
-import 'package:whyleloop_sdk/whyleloop_sdk.dart';
+import 'package:openlynk_sdk/openlynk_sdk.dart';
 
 // Initialize the SDK
-final whyleloopSDK = WhyleloopSDK(appId: 'your-app-id');
+final openlynkSDK = OpenlynkSDK(appId: 'your-app-id');
 ```
 
 ### Restore Pending Links
 
 ```dart
 // For authenticated users
-final restoredLinks = await whyleloopSDK.restorePendingLinks(
+final restoredLinks = await openlynkSDK.restorePendingLinks(
   userEmail: 'user@example.com',
 );
 
 // For anonymous users
-final restoredLinks = await whyleloopSDK.restorePendingLinksForAnonymous();
+final restoredLinks = await openlynkSDK.restorePendingLinksForAnonymous();
 ```
 
 ### Handle Restored Links
@@ -65,13 +65,13 @@ for (RestoredLink link in restoredLinks) {
 
 ## API Reference
 
-### WhyleloopSDK
+### OpenlynkSDK
 
 #### Constructor
 ```dart
-WhyleloopSDK({
+OpenlynkSDK({
   required String appId,
-  String baseURL = 'https://whyleloop.app',
+  String baseURL = 'https://openlynk.app',
 })
 ```
 
@@ -124,4 +124,4 @@ See the complete example in the SDK file comments for a full integration example
 
 ## License
 
-This SDK is provided as part of the Whyleloop platform.
+This SDK is provided as part of the Openlynk platform.

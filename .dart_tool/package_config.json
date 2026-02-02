@@ -33,7 +33,7 @@
     },
     {
       "name": "ffi",
-      "rootUri": "file:///Users/jonas/.pub-cache/hosted/pub.dev/ffi-2.1.4",
+      "rootUri": "file:///Users/jonas/.pub-cache/hosted/pub.dev/ffi-2.1.5",
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },
@@ -87,9 +87,9 @@
     },
     {
       "name": "meta",
-      "rootUri": "file:///Users/jonas/.pub-cache/hosted/pub.dev/meta-1.16.0",
+      "rootUri": "file:///Users/jonas/.pub-cache/hosted/pub.dev/meta-1.17.0",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.5"
     },
     {
       "name": "path",
@@ -135,7 +135,7 @@
     },
     {
       "name": "shared_preferences_android",
-      "rootUri": "file:///Users/jonas/.pub-cache/hosted/pub.dev/shared_preferences_android-2.4.18",
+      "rootUri": "file:///Users/jonas/.pub-cache/hosted/pub.dev/shared_preferences_android-2.4.20",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -230,15 +230,15 @@
       "languageVersion": "3.3"
     },
     {
-      "name": "whyleloop_sdk",
+      "name": "openlynk_sdk",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "2.17"
     }
   ],
   "generator": "pub",
-  "generatorVersion": "3.9.2",
+  "generatorVersion": "3.10.7",
   "flutterRoot": "file:///Users/jonas/flutter",
-  "flutterVersion": "3.35.7",
+  "flutterVersion": "3.38.8",
   "pubCache": "file:///Users/jonas/.pub-cache"
 }
