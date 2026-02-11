@@ -22,10 +22,10 @@ class OpenlynkSDK {
   /// Initialize the Openlynk SDK
   /// 
   /// [appId] - Your app ID from Openlynk dashboard
-  /// [baseURL] - Base URL (default: https://openlynk.app)
+  /// [baseURL] - Base URL (default: https://openlynk.io)
   OpenlynkSDK({
     required this.appId,
-    this.baseURL = 'https://openlynk.app',
+    this.baseURL = 'https://openlynk.io',
   });
   
   /// Restore pending links for a user after app installation

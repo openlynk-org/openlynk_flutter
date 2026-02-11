@@ -71,7 +71,7 @@ for (RestoredLink link in restoredLinks) {
 ```dart
 OpenlynkSDK({
   required String appId,
-  String baseURL = 'https://openlynk.app',
+  String baseURL = 'https://openlynk.io',
 })
 ```
 
