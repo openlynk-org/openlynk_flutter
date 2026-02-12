@@ -7,6 +7,7 @@
       "name": "openlynk_sdk",
       "version": "0.1.0",
       "dependencies": [
+        "app_links",
         "device_info_plus",
         "flutter",
         "http",
@@ -21,6 +22,16 @@
       "version": "3.0.2",
       "dependencies": [
         "lints"
+      ]
+    },
+    {
+      "name": "app_links",
+      "version": "7.0.0",
+      "dependencies": [
+        "app_links_linux",
+        "app_links_platform_interface",
+        "app_links_web",
+        "flutter"
       ]
     },
     {
@@ -76,6 +87,33 @@
       "name": "lints",
       "version": "3.0.0",
       "dependencies": []
+    },
+    {
+      "name": "app_links_web",
+      "version": "1.0.4",
+      "dependencies": [
+        "app_links_platform_interface",
+        "flutter",
+        "flutter_web_plugins",
+        "web"
+      ]
+    },
+    {
+      "name": "app_links_platform_interface",
+      "version": "2.0.2",
+      "dependencies": [
+        "flutter",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "app_links_linux",
+      "version": "1.0.3",
+      "dependencies": [
+        "app_links_platform_interface",
+        "flutter",
+        "gtk"
+      ]
     },
     {
       "name": "win32_registry",
@@ -235,16 +273,25 @@
       "dependencies": []
     },
     {
-      "name": "path",
-      "version": "1.9.1",
-      "dependencies": []
-    },
-    {
       "name": "plugin_platform_interface",
       "version": "2.1.8",
       "dependencies": [
         "meta"
       ]
+    },
+    {
+      "name": "gtk",
+      "version": "2.1.0",
+      "dependencies": [
+        "ffi",
+        "flutter",
+        "meta"
+      ]
+    },
+    {
+      "name": "path",
+      "version": "1.9.1",
+      "dependencies": []
     },
     {
       "name": "path_provider_windows",

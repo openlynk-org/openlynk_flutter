@@ -4,6 +4,9 @@ A Flutter SDK for implementing deferred deep linking with Openlynk.
 
 ## Features
 
+- **Automatic deep link listener**: Listens for Universal Links (iOS) and App Links (Android); callbacks when the app is opened via a link
+- **Auto parsing of universal/app links**: Incoming links are resolved to destination path and parameters via the API
+- **Automatic restore on init**: Restores pending links when you call `init()`, so install → open app → navigate in one step
 - **Deferred Deep Linking**: Restore original link data after app installation
 - **Cross-Platform**: Works on both iOS and Android
 - **Anonymous Support**: Device fingerprinting for users without accounts
@@ -28,14 +31,25 @@ flutter pub get
 
 ## Usage
 
-### Basic Setup
+### Basic Setup (with automatic listener and restore)
 
 ```dart
 import 'package:openlynk_sdk/openlynk_sdk.dart';
 
-// Initialize the SDK
-final openlynkSDK = OpenlynkSDK(appId: 'your-app-id');
+// In your State.initState:
+openlynkSDK = OpenlynkSDK(
+  appId: 'your-app-id',
+  config: OpenlynkSDKConfig(
+    autoRestoreOnInit: true,
+    userEmailProvider: () => getCurrentUserEmail(),
+    onRestoredLinks: (restored) { /* navigate from restored links */ },
+    onDeepLink: (parsed) { /* navigate from parsed deep link */ },
+  ),
+);
+openlynkSDK.init();
 ```
+
+Configure your app for **Universal Links** (iOS) and **App Links** (Android) so the OS opens your app for your Openlynk link domain. See your platform docs and the [app_links](https://pub.dev/packages/app_links) package for setup.
 
 ### Restore Pending Links
 
@@ -121,6 +135,7 @@ See the complete example in the SDK file comments for a full integration example
 - `http`: For API communication
 - `shared_preferences`: For device fingerprint storage
 - `device_info_plus`: For device information
+- `app_links`: For Universal Links / App Links handling
 
 ## License
 

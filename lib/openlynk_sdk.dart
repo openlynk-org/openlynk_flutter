@@ -1,33 +1,194 @@
 /**
  * Openlynk Deferred Deep Linking SDK for Flutter
- * 
+ *
  * This SDK provides Flutter integration for deferred deep linking.
  * It handles storing and restoring pending links when users install your app
  * after clicking a deep link.
+ *
+ * Features:
+ * - Automatic deep link listener (Universal Links / App Links)
+ * - Auto parsing of incoming links to destination + parameters
+ * - Automatically restore pending links on SDK initialization
  */
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:app_links/app_links.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
+/// Configuration for automatic SDK behaviour on [OpenlynkSDK.init].
+class OpenlynkSDKConfig {
+  /// If true (default), pending links are restored once when [OpenlynkSDK.init] is called.
+  final bool autoRestoreOnInit;
+
+  /// Optional provider for the current user's email. If set, restore uses it for matching.
+  /// If null, restore uses anonymous device fingerprint.
+  final Future<String?> Function()? userEmailProvider;
+
+  /// Called when restore returns one or more pending links (e.g. after install).
+  final void Function(List<RestoredLink>)? onRestoredLinks;
+
+  /// Called when the app is opened via a deep link (Universal Link / App Link).
+  /// The [ParsedDeepLink] contains destination path, parameters, and metadata.
+  final void Function(ParsedDeepLink)? onDeepLink;
+
+  const OpenlynkSDKConfig({
+    this.autoRestoreOnInit = true,
+    this.userEmailProvider,
+    this.onRestoredLinks,
+    this.onDeepLink,
+  });
+}
+
+/// Result of parsing an incoming deep link (Universal Link / App Link).
+/// Use [destination] or [destinationPath] + [parameters] to navigate in your app.
+class ParsedDeepLink {
+  /// Original URI that opened the app.
+  final Uri originalUri;
+
+  /// Full destination with parameters (e.g. "/product/123?utm_source=share").
+  final String destination;
+
+  /// Path only (e.g. "/product/123").
+  final String destinationPath;
+
+  /// Extracted parameters (metadata minus internal fields).
+  final Map<String, dynamic> parameters;
+
+  /// Full metadata from the link.
+  final Map<String, dynamic> metadata;
+
+  /// Link ID from Openlynk.
+  final String linkId;
+
+  /// Slug from the URL.
+  final String slug;
+
+  ParsedDeepLink({
+    required this.originalUri,
+    required this.destination,
+    required this.destinationPath,
+    required this.parameters,
+    required this.metadata,
+    required this.linkId,
+    required this.slug,
+  });
+
+  /// Create from [LinkDetails] and the original [Uri].
+  factory ParsedDeepLink.fromLinkDetails(Uri originalUri, LinkDetails details) {
+    return ParsedDeepLink(
+      originalUri: originalUri,
+      destination: details.destination,
+      destinationPath: details.destinationPath,
+      parameters: details.parameters,
+      metadata: details.metadata,
+      linkId: details.id,
+      slug: details.slug,
+    );
+  }
+}
+
 class OpenlynkSDK {
   static const String _tag = 'OpenlynkSDK';
   static const String _prefsKey = 'openlynk_device_fingerprint';
-  
+
   final String baseURL;
   final String appId;
-  
+  final OpenlynkSDKConfig config;
+
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
+
   /// Initialize the Openlynk SDK
-  /// 
+  ///
   /// [appId] - Your app ID from Openlynk dashboard
   /// [baseURL] - Base URL (default: https://openlynk.io)
+  /// [config] - Optional config for auto restore and deep link callbacks
   OpenlynkSDK({
     required this.appId,
     this.baseURL = 'https://openlynk.io',
+    this.config = const OpenlynkSDKConfig(),
   });
-  
+
+  /// Call this once after creating the SDK (e.g. in [State.initState]).
+  /// - If [OpenlynkSDKConfig.autoRestoreOnInit] is true, restores pending links and
+  ///   calls [OpenlynkSDKConfig.onRestoredLinks] if any are returned.
+  /// - Starts listening for deep links and calls [OpenlynkSDKConfig.onDeepLink]
+  ///   when the app is opened via a Universal Link / App Link.
+  /// - Processes the initial link if the app was opened from a cold start via a link.
+  Future<void> init() async {
+    if (config.autoRestoreOnInit) {
+      try {
+        final userEmail = config.userEmailProvider != null
+            ? await config.userEmailProvider!()
+            : null;
+        final restored = await restorePendingLinks(userEmail: userEmail);
+        if (restored.isNotEmpty && config.onRestoredLinks != null) {
+          config.onRestoredLinks!(restored);
+        }
+      } catch (e) {
+        print('$_tag: Auto restore failed: $e');
+      }
+    }
+
+    _startDeepLinkListener();
+
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        await _handleIncomingLink(initialUri);
+      }
+    } catch (e) {
+      print('$_tag: Failed to get initial link: $e');
+    }
+  }
+
+  /// Stops listening for deep links. Call from [State.dispose] if needed.
+  void dispose() {
+    _linkSubscription?.cancel();
+    _linkSubscription = null;
+  }
+
+  /// Parses a deep link URI: extracts slug, fetches link details from the API,
+  /// and returns a [ParsedDeepLink] with destination and parameters.
+  /// Returns null if the URI is not a valid Openlynk link or the API call fails.
+  Future<ParsedDeepLink?> parseDeepLink(Uri uri) async {
+    final slug = _slugFromUri(uri);
+    if (slug == null || slug.isEmpty) return null;
+    final hostname = uri.host.isNotEmpty ? uri.host : null;
+    try {
+      final details = await getLinkBySlug(slug: slug, hostname: hostname);
+      return ParsedDeepLink.fromLinkDetails(uri, details);
+    } catch (e) {
+      print('$_tag: Failed to parse deep link $uri: $e');
+      return null;
+    }
+  }
+
+  /// Extracts the link slug from a deep link URI (last path segment).
+  static String? _slugFromUri(Uri uri) {
+    final segments = uri.pathSegments;
+    if (segments.isEmpty) return null;
+    return segments.last;
+  }
+
+  void _startDeepLinkListener() {
+    _linkSubscription?.cancel();
+    _linkSubscription = _appLinks.uriLinkStream.listen((Uri uri) {
+      _handleIncomingLink(uri);
+    });
+  }
+
+  Future<void> _handleIncomingLink(Uri uri) async {
+    final parsed = await parseDeepLink(uri);
+    if (parsed != null && config.onDeepLink != null) {
+      config.onDeepLink!(parsed);
+    }
+  }
+
   /// Restore pending links for a user after app installation
   /// 
   /// Call this method on app launch to retrieve any pending deep links
@@ -449,7 +610,7 @@ extension OpenlynkSDKExtension on OpenlynkSDK {
 typedef CreateLinkCallback = void Function(CreatedLink link, Exception? error);
 
 /*
-// Usage Example in your main.dart or app initialization:
+// Usage Example with automatic deep link listener, auto parsing, and restore on init:
 
 import 'package:openlynk_sdk/openlynk_sdk.dart';
 
@@ -474,120 +635,64 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late OpenlynkSDK openlynkSDK;
-  
+
   @override
   void initState() {
     super.initState();
-    
-    // Initialize the SDK
-    openlynkSDK = OpenlynkSDK(appId: 'your-app-id');
-    
-    // Restore pending links on app launch
-    _restorePendingLinks();
+
+    openlynkSDK = OpenlynkSDK(
+      appId: 'your-app-id',
+      config: OpenlynkSDKConfig(
+        autoRestoreOnInit: true,
+        userEmailProvider: () => getCurrentUserEmail(),
+        onRestoredLinks: (restored) {
+          for (final link in restored) {
+            _navigateFromRestoredLink(link);
+          }
+        },
+        onDeepLink: (parsed) {
+          _navigateFromParsedLink(parsed);
+        },
+      ),
+    );
+    openlynkSDK.init();
   }
-  
-  Future<void> _restorePendingLinks() async {
-    try {
-      // Get user email (implement your own method)
-      String? userEmail = await getCurrentUserEmail();
-      
-      List<RestoredLink> restoredLinks;
-      if (userEmail != null) {
-        // Restore for authenticated users
-        restoredLinks = await openlynkSDK.restorePendingLinks(userEmail: userEmail);
-      } else {
-        // Restore for anonymous users
-        restoredLinks = await openlynkSDK.restorePendingLinksForAnonymous();
-      }
-      
-      if (restoredLinks.isNotEmpty) {
-        print('OpenlynkSDK: Restored ${restoredLinks.length} pending links');
-        
-        // Handle each restored link
-        for (RestoredLink link in restoredLinks) {
-          _handleRestoredLink(link);
-        }
-      }
-    } catch (e) {
-      print('OpenlynkSDK: Failed to restore pending links: $e');
-    }
+
+  @override
+  void dispose() {
+    openlynkSDK.dispose();
+    super.dispose();
   }
-  
-  void _handleRestoredLink(RestoredLink link) {
-    // Parse the destination URL and navigate accordingly
-    try {
-      final uri = Uri.parse(link.destinationUrl);
-      
-      // Extract UTM parameters
-      final utmSource = link.utmSource;
-      final utmCampaign = link.utmCampaign;
-      
-      // Navigate to the appropriate screen
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigateToDestination(uri, utmSource, utmCampaign);
-      });
-      
-    } catch (e) {
-      print('OpenlynkSDK: Error handling restored link: $e');
-    }
+
+  void _navigateFromRestoredLink(RestoredLink link) {
+    final destination = link.destination ?? link.destinationUrl;
+    final uri = Uri.parse(destination);
+    final params = link.parameters ?? link.metadata;
+    _navigateToDestination(uri, params);
   }
-  
-  void _navigateToDestination(Uri uri, String? utmSource, String? utmCampaign) {
-    // Implement your navigation logic here
-    // Example: Navigate to specific product, category, or screen
-    print('OpenlynkSDK: Navigating to: ${uri.toString()}');
-    print('OpenlynkSDK: UTM Source: ${utmSource ?? "none"}');
-    print('OpenlynkSDK: UTM Campaign: ${utmCampaign ?? "none"}');
-    
-    // Example navigation logic:
+
+  void _navigateFromParsedLink(ParsedDeepLink parsed) {
+    final uri = Uri.parse(parsed.destination);
+    _navigateToDestination(uri, parsed.parameters);
+  }
+
+  void _navigateToDestination(Uri uri, Map<String, dynamic> params) {
     if (uri.path.contains('/product/')) {
       final productId = uri.pathSegments.last;
-      // Navigate to product screen
-      // Navigator.push(context, MaterialPageRoute(builder: (context) => ProductScreen(productId: productId)));
-    } else if (uri.path.contains('/category/')) {
-      final categoryId = uri.pathSegments.last;
-      // Navigate to category screen
-      // Navigator.push(context, MaterialPageRoute(builder: (context) => CategoryScreen(categoryId: categoryId)));
+      // Navigator.push(context, MaterialPageRoute(builder: (_) => ProductScreen(productId: productId, params: params)));
     } else {
       // Default navigation
-      // Navigator.push(context, MaterialPageRoute(builder: (context) => HomeScreen()));
     }
   }
-  
-  // Implement your own method to get current user email
-  Future<String?> getCurrentUserEmail() async {
-    // Return user email if authenticated, null otherwise
-    return null; // Replace with your implementation
-  }
-  
+
+  Future<String?> getCurrentUserEmail() async => null;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('My App'),
-      ),
-      body: Center(
-        child: Text('Welcome to My App!'),
-      ),
+      appBar: AppBar(title: Text('My App')),
+      body: Center(child: Text('Welcome to My App!')),
     );
   }
-}
-
-// Alternative usage with callbacks:
-
-void _restorePendingLinksWithCallback() {
-  openlynkSDK.restorePendingLinksWithCallback(
-    userEmail: getCurrentUserEmail(),
-    callback: (restoredLinks, error) {
-      if (error != null) {
-        print('OpenlynkSDK: Error: $error');
-      } else {
-        print('OpenlynkSDK: Restored ${restoredLinks.length} pending links');
-        for (RestoredLink link in restoredLinks) {
-          _handleRestoredLink(link);
-        }
-      }
-    },
-  );
 }
 */
