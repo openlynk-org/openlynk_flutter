@@ -94,6 +94,8 @@ class ParsedDeepLink {
 class OpenlynkSDK {
   static const String _tag = 'OpenlynkSDK';
   static const String _prefsKey = 'openlynk_device_fingerprint';
+  static const String _lastHeartbeatKey = 'openlynk_last_install_heartbeat_at';
+  static const Duration _heartbeatThrottle = Duration(hours: 24);
 
   final String baseURL;
   final String appId;
@@ -119,7 +121,11 @@ class OpenlynkSDK {
   /// - Starts listening for deep links and calls [OpenlynkSDKConfig.onDeepLink]
   ///   when the app is opened via a Universal Link / App Link.
   /// - Processes the initial link if the app was opened from a cold start via a link.
+  /// - Reports install (first launch) or heartbeat (throttled ~once per 24h) for analytics.
   Future<void> init() async {
+    // Fire-and-forget: install/heartbeat for analytics (throttled)
+    _reportInstallHeartbeatIfNeeded();
+
     if (config.autoRestoreOnInit) {
       try {
         final userEmail = config.userEmailProvider != null
@@ -348,6 +354,41 @@ class OpenlynkSDK {
     }
   }
   
+  /// Report install (first launch) or heartbeat. Throttled to once per 24h. Fire-and-forget.
+  void _reportInstallHeartbeatIfNeeded() {
+    Future<void> run() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final lastAtMs = prefs.getInt(_lastHeartbeatKey);
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (lastAtMs != null && (now - lastAtMs) < _heartbeatThrottle.inMilliseconds) return;
+        final fingerprint = await _getDeviceFingerprint();
+        final success = await _makeInstallHeartbeatRequest(fingerprint);
+        if (success) {
+          await prefs.setInt(_lastHeartbeatKey, now);
+        }
+      } catch (e) {
+        print('$_tag: Install heartbeat failed: $e');
+      }
+    }
+    run();
+  }
+
+  Future<bool> _makeInstallHeartbeatRequest(String deviceFingerprint) async {
+    try {
+      final uri = Uri.parse('$baseURL/api/deferred-deep-linking/install-heartbeat');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'appId': appId, 'deviceFingerprint': deviceFingerprint}),
+      ).timeout(const Duration(seconds: 10));
+      return response.statusCode == 200;
+    } catch (e) {
+      print('$_tag: Install heartbeat request failed: $e');
+      return false;
+    }
+  }
+
   /// Get device fingerprint for anonymous user identification
   Future<String> _getDeviceFingerprint() async {
     final prefs = await SharedPreferences.getInstance();
