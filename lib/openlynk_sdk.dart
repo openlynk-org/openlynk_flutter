@@ -89,6 +89,38 @@ class ParsedDeepLink {
       slug: details.slug,
     );
   }
+
+  /// Create from push notification data payload (destinationPath + metadata).
+  /// Use when handling FCM data via [OpenlynkSDK.handlePushPayload].
+  factory ParsedDeepLink.fromPushPayload(Map<String, dynamic> data) {
+    final path = data['destinationPath'] as String? ?? '/';
+    final meta = data['metadata'] is Map
+        ? Map<String, dynamic>.from(data['metadata'] as Map)
+        : (data['metadata'] is String
+            ? (() {
+                try {
+                  final decoded = jsonDecode(data['metadata'] as String);
+                  return Map<String, dynamic>.from(decoded as Map);
+                } catch (_) {
+                  return <String, dynamic>{};
+                }
+              }())
+            : <String, dynamic>{});
+    final params = Map<String, dynamic>.from(meta);
+    final query = params.entries
+        .map((e) => '${Uri.encodeComponent(e.key.toString())}=${Uri.encodeComponent(e.value.toString())}')
+        .join('&');
+    final destination = query.isEmpty ? path : '$path?$query';
+    return ParsedDeepLink(
+      originalUri: Uri.parse('openlynk://push'),
+      destination: destination,
+      destinationPath: path,
+      parameters: params,
+      metadata: meta,
+      linkId: data['notificationId'] as String? ?? '',
+      slug: 'push',
+    );
+  }
 }
 
 class OpenlynkSDK {
@@ -308,6 +340,58 @@ class OpenlynkSDK {
     }
   }
   
+  /// Register device for push notifications.
+  /// Call after obtaining the FCM token (e.g. from Firebase Messaging).
+  /// [token] - FCM device token
+  /// [userEmail] - Optional user email for identification
+  Future<void> registerPushToken(String token, {String? userEmail}) async {
+    try {
+      final platform = Platform.isIOS ? 'ios' : 'android';
+      final response = await http.post(
+        Uri.parse('$baseURL/api/push/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'appId': appId,
+          'deviceToken': token,
+          'platform': platform,
+          if (userEmail != null) 'userEmail': userEmail,
+        }),
+      );
+      if (response.statusCode != 200) {
+        print('$_tag: registerPushToken failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('$_tag: registerPushToken error: $e');
+    }
+  }
+
+  /// Handle push notification payload (FCM data).
+  /// Call when the user taps a push that contains Openlynk deep link data.
+  /// Extracts [destinationPath] and [metadata], triggers [OpenlynkSDKConfig.onDeepLink]
+  /// with the same navigation semantics as Universal/App Links, then reports opened to the API.
+  /// [data] - FCM data map containing destinationPath, metadata, notificationId (and optionally deviceToken)
+  Future<void> handlePushPayload(Map<String, dynamic> data) async {
+    try {
+      final parsed = ParsedDeepLink.fromPushPayload(data);
+      if (config.onDeepLink != null) {
+        config.onDeepLink!(parsed);
+      }
+      final notificationId = data['notificationId'] as String?;
+      if (notificationId != null && notificationId.isNotEmpty) {
+        await http.post(
+          Uri.parse('$baseURL/api/push/opened'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'notificationId': notificationId,
+            if (data['deviceToken'] != null) 'deviceToken': data['deviceToken'],
+          }),
+        );
+      }
+    } catch (e) {
+      print('$_tag: handlePushPayload error: $e');
+    }
+  }
+
   /// Get link details by slug
   /// 
   /// When your app receives a deep link URL, extract the slug and call this method
