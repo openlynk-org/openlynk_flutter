@@ -3,9 +3,9 @@
   "packages": [
     {
       "name": "app_links",
-      "rootUri": "file:///Users/jonas/.pub-cache/hosted/pub.dev/app_links-7.0.0",
+      "rootUri": "file:///Users/jonas/.pub-cache/hosted/pub.dev/app_links-6.4.1",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "3.5"
     },
     {
       "name": "app_links_linux",

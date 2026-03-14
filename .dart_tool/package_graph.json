@@ -26,7 +26,7 @@
     },
     {
       "name": "app_links",
-      "version": "7.0.0",
+      "version": "6.4.1",
       "dependencies": [
         "app_links_linux",
         "app_links_platform_interface",

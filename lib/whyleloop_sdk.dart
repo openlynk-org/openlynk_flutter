@@ -18,6 +18,7 @@ class OpenlynkSDK {
   
   final String baseURL;
   final String appId;
+  final String apiKey;
   
   /// Initialize the Openlynk SDK
   /// 
@@ -25,6 +26,7 @@ class OpenlynkSDK {
   /// [baseURL] - Base URL (default: https://openlynk.io)
   OpenlynkSDK({
     required this.appId,
+    required this.apiKey,
     this.baseURL = 'https://openlynk.io',
   });
   
@@ -55,6 +57,7 @@ class OpenlynkSDK {
         Uri.parse('$baseURL/api/deferred-deep-linking/restore'),
         headers: {
           'Content-Type': 'application/json',
+          'x-openlynk-sdk-key': apiKey,
         },
         body: jsonEncode(requestBody),
       );
@@ -119,6 +122,7 @@ class OpenlynkSDK {
         Uri.parse('$baseURL/api/links/create-sdk'),
         headers: {
           'Content-Type': 'application/json',
+          'x-openlynk-sdk-key': apiKey,
         },
         body: jsonEncode(requestBody),
       );
@@ -167,7 +171,7 @@ class OpenlynkSDK {
           .replace(queryParameters: queryParams);
       
       // Make API request
-      final response = await http.get(uri);
+      final response = await http.get(uri, headers: {'x-openlynk-sdk-key': apiKey});
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -480,7 +484,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     
     // Initialize the SDK
-    openlynkSDK = OpenlynkSDK(appId: 'your-app-id');
+    openlynkSDK = OpenlynkSDK(appId: 'your-app-id', apiKey: 'your-api-key');
     
     // Restore pending links on app launch
     _restorePendingLinks();
