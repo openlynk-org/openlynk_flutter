@@ -350,6 +350,22 @@ class OpenlynkSDK {
         }
       } else if (response.statusCode == 429) {
         throw OpenlynkRateLimitException();
+      } else if (response.statusCode == 403) {
+        try {
+          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+          if (errorData['reason'] == 'GENERATED_LINKS_LIMIT_REACHED') {
+            throw OpenlynkLinkLimitException(
+              message: errorData['error'] as String? ?? 'Link limit reached',
+              currentCount: errorData['currentCount'] as int? ?? 0,
+              limit: errorData['limit'] as int? ?? 0,
+              plan: errorData['plan'] as String? ?? 'unknown',
+              upgradeRequired: errorData['upgradeRequired'] as String?,
+            );
+          }
+        } on OpenlynkLinkLimitException {
+          rethrow;
+        } catch (_) {}
+        throw Exception('HTTP error: 403');
       } else {
         String errorMessage = 'HTTP error: ${response.statusCode}';
         try {
@@ -546,6 +562,26 @@ class OpenlynkRateLimitException implements Exception {
   OpenlynkRateLimitException([this.message = 'Too many requests']);
   @override
   String toString() => 'OpenlynkRateLimitException: $message';
+}
+
+/// Thrown when link creation fails because the subscription plan limit was reached.
+class OpenlynkLinkLimitException implements Exception {
+  final String message;
+  final int currentCount;
+  final int limit;
+  final String plan;
+  final String? upgradeRequired;
+
+  OpenlynkLinkLimitException({
+    required this.message,
+    required this.currentCount,
+    required this.limit,
+    required this.plan,
+    this.upgradeRequired,
+  });
+
+  @override
+  String toString() => 'OpenlynkLinkLimitException: $message (plan: $plan, $currentCount/$limit)';
 }
 
 /// Data class for created link
