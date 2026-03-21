@@ -14,6 +14,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:app_links/app_links.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -516,8 +517,7 @@ class OpenlynkSDK {
         deviceInfoString = DateTime.now().millisecondsSinceEpoch.toString();
       }
       
-      // Create a simple hash (in production, use proper hashing)
-      return deviceInfoString.hashCode.toString();
+      return sha256.convert(utf8.encode(deviceInfoString)).toString();
     } catch (e) {
       print('$_tag: Error generating device fingerprint: $e');
       return DateTime.now().millisecondsSinceEpoch.toString();
