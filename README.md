@@ -39,6 +39,7 @@ import 'package:openlynk_sdk/openlynk_sdk.dart';
 // In your State.initState:
 openlynkSDK = OpenlynkSDK(
   appId: 'your-app-id',
+  apiKey: 'your-api-key',
   config: OpenlynkSDKConfig(
     autoRestoreOnInit: true,
     userEmailProvider: () => getCurrentUserEmail(),
@@ -85,30 +86,94 @@ for (RestoredLink link in restoredLinks) {
 ```dart
 OpenlynkSDK({
   required String appId,
+  required String apiKey,
   String baseURL = 'https://openlynk.io',
+  OpenlynkSDKConfig config = const OpenlynkSDKConfig(),
 })
 ```
 
 #### Methods
 
+##### init
+```dart
+Future<void> init()
+```
+Call once after creating the SDK. Restores pending links (if `autoRestoreOnInit`), starts the deep link listener, and reports an install heartbeat.
+
 ##### restorePendingLinks
 ```dart
-Future<List<RestoredLink>> restorePendingLinks({
-  String? userEmail,
-})
+Future<List<RestoredLink>> restorePendingLinks({String? userEmail})
 ```
+Restore pending links after app installation. Uses `userEmail` if provided, otherwise falls back to device fingerprint.
 
 ##### restorePendingLinksForAnonymous
 ```dart
 Future<List<RestoredLink>> restorePendingLinksForAnonymous()
 ```
+Shorthand for `restorePendingLinks()` without an email (device fingerprint only).
+
+##### createLink
+```dart
+Future<CreatedLink> createLink({
+  required String destination,
+  Map<String, dynamic>? metadata,
+})
+```
+Create a dynamic deep link for sharing. `destination` is the in-app path (e.g., `"/product/123"`).
+
+##### registerPushToken
+```dart
+Future<void> registerPushToken(String token, {String? userEmail})
+```
+Register an FCM device token for push notifications.
+
+##### handlePushPayload
+```dart
+Future<void> handlePushPayload(Map<String, dynamic> data)
+```
+Handle a push notification payload. Triggers `onDeepLink` and reports the open event.
+
+##### dispose
+```dart
+void dispose()
+```
+Stop listening for deep links. Call from `State.dispose`.
+
+### ParsedDeepLink
+
+Returned by the `onDeepLink` callback when a deep link is opened.
+
+#### Properties
+- `originalUri`: The raw URI that opened the app
+- `destination`: Full destination with parameters (e.g., `"/product/123?utm_source=share"`)
+- `destinationPath`: Path only (e.g., `"/product/123"`)
+- `parameters`: Extracted parameters as a map
+- `metadata`: Full metadata from the link
+- `linkId`: Openlynk link ID
+- `slug`: URL slug
+
+### CreatedLink
+
+Returned by `createLink()`.
+
+#### Properties
+- `id`: Link ID
+- `slug`: URL slug
+- `url`: Full shareable URL
+- `destination`: The destination path
+- `metadata`: Link metadata
 
 ### RestoredLink
+
+Returned by `restorePendingLinks()`.
 
 #### Properties
 - `pendingLinkId`: Unique identifier for the pending link
 - `originalUrl`: The original deep link URL that was clicked
-- `destinationUrl`: The final destination URL with UTM parameters
+- `destinationUrl`: The final destination URL
+- `destinationPath`: Path without parameters
+- `destination`: Full destination with parameters
+- `parameters`: Extracted parameters for easy access
 - `metadata`: Map containing UTM parameters and other tracking data
 - `linkId`: The ID of the original link
 
@@ -118,6 +183,11 @@ Future<List<RestoredLink>> restorePendingLinksForAnonymous()
 - `utmCampaign`: Campaign name (e.g., "summer-sale")
 - `utmTerm`: Paid search keywords
 - `utmContent`: Ad content or link text
+
+### Exceptions
+
+- `OpenlynkRateLimitException`: Thrown on HTTP 429 (too many requests)
+- `OpenlynkLinkLimitException`: Thrown when `createLink` exceeds your plan's link limit. Includes `currentCount`, `limit`, `plan`, and `upgradeRequired` fields.
 
 ## Example Integration
 
