@@ -15,6 +15,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
+import 'package:uuid/uuid.dart';
 import 'package:app_links/app_links.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -513,14 +514,13 @@ class OpenlynkSDK {
         final IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
         deviceInfoString = '${iosInfo.identifierForVendor}_${iosInfo.model}_${iosInfo.systemName}_${iosInfo.systemVersion}';
       } else {
-        // Fallback for other platforms
-        deviceInfoString = DateTime.now().millisecondsSinceEpoch.toString();
+        return const Uuid().v4();
       }
       
       return sha256.convert(utf8.encode(deviceInfoString)).toString();
     } catch (e) {
       print('$_tag: Error generating device fingerprint: $e');
-      return DateTime.now().millisecondsSinceEpoch.toString();
+      return const Uuid().v4();
     }
   }
 }
