@@ -130,6 +130,7 @@ class OpenlynkSDK {
   static const String _prefsKey = 'openlynk_device_fingerprint';
   static const String _lastHeartbeatKey = 'openlynk_last_install_heartbeat_at';
   static const Duration _heartbeatThrottle = Duration(hours: 24);
+  static const Duration _requestTimeout = Duration(seconds: 15);
 
   final String baseURL;
   final String appId;
@@ -261,7 +262,7 @@ class OpenlynkSDK {
           'x-openlynk-sdk-key': apiKey,
         },
         body: jsonEncode(requestBody),
-      );
+      ).timeout(_requestTimeout);
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -326,7 +327,7 @@ class OpenlynkSDK {
           'x-openlynk-sdk-key': apiKey,
         },
         body: jsonEncode(requestBody),
-      );
+      ).timeout(_requestTimeout);
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -365,7 +366,7 @@ class OpenlynkSDK {
           'platform': platform,
           if (userEmail != null) 'userEmail': userEmail,
         }),
-      );
+      ).timeout(_requestTimeout);
       if (response.statusCode != 200) {
         print('$_tag: registerPushToken failed: ${response.statusCode}');
       }
@@ -397,7 +398,7 @@ class OpenlynkSDK {
             'notificationId': notificationId,
             if (data['deviceToken'] != null) 'deviceToken': data['deviceToken'],
           }),
-        );
+        ).timeout(_requestTimeout);
       }
     } catch (e) {
       print('$_tag: handlePushPayload error: $e');
@@ -430,7 +431,7 @@ class OpenlynkSDK {
           .replace(queryParameters: queryParams);
       
       // Make API request
-      final response = await http.get(uri, headers: {'x-openlynk-sdk-key': apiKey});
+      final response = await http.get(uri, headers: {'x-openlynk-sdk-key': apiKey}).timeout(_requestTimeout);
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
