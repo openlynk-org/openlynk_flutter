@@ -285,6 +285,8 @@ class OpenlynkSDK {
         } else {
           throw Exception('API returned error: ${responseData['error'] ?? 'Unknown error'}');
         }
+      } else if (response.statusCode == 429) {
+        throw OpenlynkRateLimitException();
       } else {
         throw Exception('HTTP error: ${response.statusCode}');
       }
@@ -346,6 +348,8 @@ class OpenlynkSDK {
         } else {
           throw Exception('API returned error: ${responseData['error'] ?? 'Unknown error'}');
         }
+      } else if (response.statusCode == 429) {
+        throw OpenlynkRateLimitException();
       } else {
         String errorMessage = 'HTTP error: ${response.statusCode}';
         try {
@@ -448,6 +452,8 @@ class OpenlynkSDK {
         } else {
           throw Exception('API returned error: ${responseData['error'] ?? 'Unknown error'}');
         }
+      } else if (response.statusCode == 429) {
+        throw OpenlynkRateLimitException();
       } else {
         String errorMessage = 'HTTP error: ${response.statusCode}';
         try {
@@ -532,6 +538,14 @@ class OpenlynkSDK {
       return const Uuid().v4();
     }
   }
+}
+
+/// Thrown when the API returns HTTP 429 (Too Many Requests).
+class OpenlynkRateLimitException implements Exception {
+  final String message;
+  OpenlynkRateLimitException([this.message = 'Too many requests']);
+  @override
+  String toString() => 'OpenlynkRateLimitException: $message';
 }
 
 /// Data class for created link
