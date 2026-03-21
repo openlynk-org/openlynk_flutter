@@ -21,7 +21,7 @@ A Flutter SDK for implementing deferred deep linking with Openlynk.
 dependencies:
   openlynk_sdk:
     git:
-      url: git@github.com:openlynk-org/openlynk_flutter.git
+      url: https://github.com/openlynk-org/openlynk_flutter.git
       ref: main
 ```
 
