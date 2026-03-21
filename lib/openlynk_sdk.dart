@@ -131,6 +131,7 @@ class OpenlynkSDK {
   static const String _lastHeartbeatKey = 'openlynk_last_install_heartbeat_at';
   static const Duration _heartbeatThrottle = Duration(hours: 24);
   static const Duration _requestTimeout = Duration(seconds: 15);
+  static const String _sdkVersion = '0.1.0';
 
   final String baseURL;
   final String appId;
@@ -139,6 +140,17 @@ class OpenlynkSDK {
 
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
+
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    'x-openlynk-sdk-key': apiKey,
+    'User-Agent': 'openlynk-flutter-sdk/$_sdkVersion',
+  };
+
+  Map<String, String> get _headersNoBody => {
+    'x-openlynk-sdk-key': apiKey,
+    'User-Agent': 'openlynk-flutter-sdk/$_sdkVersion',
+  };
 
   /// Initialize the Openlynk SDK
   ///
@@ -257,10 +269,7 @@ class OpenlynkSDK {
       // Make API request
       final response = await http.post(
         Uri.parse('$baseURL/api/deferred-deep-linking/restore'),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-openlynk-sdk-key': apiKey,
-        },
+        headers: _headers,
         body: jsonEncode(requestBody),
       ).timeout(_requestTimeout);
       
@@ -322,10 +331,7 @@ class OpenlynkSDK {
       // Make API request
       final response = await http.post(
         Uri.parse('$baseURL/api/links/create-sdk'),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-openlynk-sdk-key': apiKey,
-        },
+        headers: _headers,
         body: jsonEncode(requestBody),
       ).timeout(_requestTimeout);
       
@@ -360,10 +366,7 @@ class OpenlynkSDK {
       final platform = Platform.isIOS ? 'ios' : 'android';
       final response = await http.post(
         Uri.parse('$baseURL/api/push/register'),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-openlynk-sdk-key': apiKey,
-        },
+        headers: _headers,
         body: jsonEncode({
           'appId': appId,
           'deviceToken': token,
@@ -394,10 +397,7 @@ class OpenlynkSDK {
       if (notificationId != null && notificationId.isNotEmpty) {
         await http.post(
           Uri.parse('$baseURL/api/push/opened'),
-          headers: {
-            'Content-Type': 'application/json',
-            'x-openlynk-sdk-key': apiKey,
-          },
+          headers: _headers,
           body: jsonEncode({
             'notificationId': notificationId,
             if (data['deviceToken'] != null) 'deviceToken': data['deviceToken'],
@@ -435,7 +435,7 @@ class OpenlynkSDK {
           .replace(queryParameters: queryParams);
       
       // Make API request
-      final response = await http.get(uri, headers: {'x-openlynk-sdk-key': apiKey}).timeout(_requestTimeout);
+      final response = await http.get(uri, headers: _headersNoBody).timeout(_requestTimeout);
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -484,10 +484,7 @@ class OpenlynkSDK {
       final uri = Uri.parse('$baseURL/api/deferred-deep-linking/install-heartbeat');
       final response = await http.post(
         uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-openlynk-sdk-key': apiKey,
-        },
+        headers: _headers,
         body: jsonEncode({'appId': appId, 'deviceFingerprint': deviceFingerprint}),
       ).timeout(const Duration(seconds: 10));
       return response.statusCode == 200;
