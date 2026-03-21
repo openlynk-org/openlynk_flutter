@@ -338,8 +338,12 @@ class OpenlynkSDK {
           throw Exception('API returned error: ${responseData['error'] ?? 'Unknown error'}');
         }
       } else {
-        final Map<String, dynamic> errorData = jsonDecode(response.body);
-        throw Exception(errorData['error'] ?? 'HTTP error: ${response.statusCode}');
+        String errorMessage = 'HTTP error: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = errorData['error'] as String? ?? errorMessage;
+        } catch (_) {}
+        throw Exception(errorMessage);
       }
     } catch (e) {
       print('$_tag: Error creating link: $e');
@@ -442,8 +446,12 @@ class OpenlynkSDK {
           throw Exception('API returned error: ${responseData['error'] ?? 'Unknown error'}');
         }
       } else {
-        final Map<String, dynamic> errorData = jsonDecode(response.body);
-        throw Exception(errorData['error'] ?? 'HTTP error: ${response.statusCode}');
+        String errorMessage = 'HTTP error: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = errorData['error'] as String? ?? errorMessage;
+        } catch (_) {}
+        throw Exception(errorMessage);
       }
     } catch (e) {
       print('$_tag: Error getting link by slug: $e');
