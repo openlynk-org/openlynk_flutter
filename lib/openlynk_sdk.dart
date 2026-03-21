@@ -140,6 +140,7 @@ class OpenlynkSDK {
 
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
+  Uri? _lastHandledUri;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -238,6 +239,8 @@ class OpenlynkSDK {
   }
 
   Future<void> _handleIncomingLink(Uri uri) async {
+    if (_lastHandledUri == uri) return;
+    _lastHandledUri = uri;
     final parsed = await parseDeepLink(uri);
     if (parsed != null && config.onDeepLink != null) {
       config.onDeepLink!(parsed);
