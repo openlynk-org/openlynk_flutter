@@ -4,16 +4,16 @@ version: 0.1.0
 homepage: https://openlynk.io
 
 environment:
-  sdk: '>=2.17.0 <4.0.0'
-  flutter: ">=3.0.0"
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: ">=3.19.0"
 
 dependencies:
   flutter:
     sdk: flutter
   http: ^1.1.0
   shared_preferences: ^2.2.2
-  device_info_plus: ^9.1.1
-  app_links: ^6.3.0
+  device_info_plus: ">=9.0.0 <13.0.0"
+  app_links: ">=6.0.0 <8.0.0"
   crypto: ^3.0.0
   uuid: ^4.0.0
 
