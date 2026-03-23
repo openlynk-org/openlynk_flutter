@@ -173,10 +173,22 @@ class OpenlynkSDK {
   /// - Processes the initial link if the app was opened from a cold start via a link.
   /// - Reports install (first launch) or heartbeat (throttled ~once per 24h) for analytics.
   Future<void> init() async {
-    // Fire-and-forget: install/heartbeat for analytics (throttled)
     _reportInstallHeartbeatIfNeeded();
 
-    if (config.autoRestoreOnInit) {
+    _startDeepLinkListener();
+
+    bool handledInitialLink = false;
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        await _handleIncomingLink(initialUri);
+        handledInitialLink = true;
+      }
+    } catch (e) {
+      print('$_tag: Failed to get initial link: $e');
+    }
+
+    if (config.autoRestoreOnInit && !handledInitialLink) {
       try {
         final userEmail = config.userEmailProvider != null
             ? await config.userEmailProvider!()
@@ -188,17 +200,6 @@ class OpenlynkSDK {
       } catch (e) {
         print('$_tag: Auto restore failed: $e');
       }
-    }
-
-    _startDeepLinkListener();
-
-    try {
-      final initialUri = await _appLinks.getInitialLink();
-      if (initialUri != null) {
-        await _handleIncomingLink(initialUri);
-      }
-    } catch (e) {
-      print('$_tag: Failed to get initial link: $e');
     }
   }
 
@@ -239,7 +240,7 @@ class OpenlynkSDK {
   }
 
   Future<void> _handleIncomingLink(Uri uri) async {
-    if (_lastHandledUri == uri) return;
+    if (_lastHandledUri?.toString() == uri.toString()) return;
     _lastHandledUri = uri;
     final parsed = await parseDeepLink(uri);
     if (parsed != null && config.onDeepLink != null) {
@@ -540,10 +541,10 @@ class OpenlynkSDK {
       
       if (Platform.isAndroid) {
         final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-        deviceInfoString = '${androidInfo.id}_${androidInfo.model}_${androidInfo.manufacturer}_${androidInfo.version.release}';
+        deviceInfoString = '${androidInfo.id}_${androidInfo.model}_${androidInfo.manufacturer}';
       } else if (Platform.isIOS) {
         final IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-        deviceInfoString = '${iosInfo.identifierForVendor}_${iosInfo.model}_${iosInfo.systemName}_${iosInfo.systemVersion}';
+        deviceInfoString = '${iosInfo.identifierForVendor}_${iosInfo.model}_${iosInfo.systemName}';
       } else {
         return const Uuid().v4();
       }
